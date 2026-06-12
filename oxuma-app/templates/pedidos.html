@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+{% block title %}Pedidos — Oxuma{% endblock %}
+{% block page_title %}Pedidos{% endblock %}
+{% block page_sub %}Gestión de pedidos y ventas{% endblock %}
+
+{% block extra_head %}
+<style>
+  .qty-btn {
+    border: 1.5px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: .72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .qty-btn:hover, .qty-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .qty-pills {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+  .qty-input-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .save-btn {
+    background: var(--success-pale); color: var(--success);
+    border: none; border-radius: 8px; padding: 5px 11px;
+    font-size: .82rem; cursor: pointer; font-weight: 700; transition: all .15s;
+  }
+  .save-btn:hover { background: rgba(78,139,101,.22); }
+  .total-box {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+    border-radius: 12px; padding: 14px 18px; color: #fff;
+  }
+  .total-box .label { font-size:.74rem; opacity:.8; text-transform:uppercase; letter-spacing:.8px; }
+  .total-box .value { font-family:'Montserrat',sans-serif; font-weight:800; font-size:1.6rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+  <!-- NUEVO PEDIDO -->
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-bag-plus-fill me-2" style="color:var(--accent)"></i>Nuevo Pedido
+      </div>
+      <div class="card-body">
+        <form method="post" action="/pedido/nuevo" id="pedidoForm">
+          <div class="mb-3">
+            <label class="form-label">Cliente</label>
+            <select name="cliente_id" class="form-select form-select-sm">
+              <option value="">Sin cliente (venta directa)</option>
+              {% for c in clientes %}
+                <option value="{{ c.id }}">{{ c.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notas</label>
+            <textarea name="notas" class="form-control form-control-sm" rows="2" placeholder="Observaciones del pedido..."></textarea>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Productos</label>
+            <div id="items">
+              <div class="item-row mb-2">
+                <div class="d-flex gap-1 align-items-center">
+                  <select name="producto_id[]" class="form-select form-select-sm flex-grow-1" onchange="updateTotal()">
+                    <option value="">Seleccionar producto...</option>
+                    {% for p in productos %}
+                      <option value="{{ p.id }}"
+                        data-precio="{{ p.precio_venta }}"
+                        data-px3="{{ p.precio_x3 or 0 }}"
+                        data-px12="{{ p.precio_x12 or 0 }}"
+                        data-px24="{{ p.precio_x24 or 0 }}"
+                        data-px48="{{ p.precio_x48 or 0 }}">{{ p.nombre }} — ${{ "{:,.0f}".format(p.precio_venta) }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="number" name="cantidad[]" class="form-control form-control-sm"
+                         style="width:58px" value="1" min="1" oninput="updateTotal(); syncPills(this)">
+                  <button type="button" onclick="this.closest('.item-row').remove(); updateTotal()"
+                          class="btn btn-sm" style="background:var(--danger-pale);color:var(--danger);border:none;border-radius:8px;padding:0 9px">✕</button>
+                </div>
+                <div class="qty-pills mt-1 ms-0">
+                  <span style="font-size:.68rem;color:var(--text-muted)">Cant:</span>
+                  <button type="button" class="qty-btn" onclick="setQty(this, 6)">6</button>
+                  <button type="button" class="qty-btn" onclick="setQty(this, 12)">12</button>
+                  <button type="button" class="qty-btn" onclick="setQty(this, 24)">24</button>
+                  <button type="button" class="qty-btn" onclick="setQty(this, 48)">48</button>
+                  <button type="button" class="qty-btn" onclick="setQty(this, 96)">96</button>
+                  <span class="precio-tier-label ms-1" style="font-size:.68rem;color:var(--accent);font-weight:700"></span>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-oxuma-outline btn-sm w-100 mt-1" onclick="addItem()">
+              <i class="bi bi-plus me-1"></i>Agregar producto
+            </button>
+          </div>
+
+          <!-- Total estimado -->
+          <div class="total-box mt-3 mb-3">
+            <div class="label">Total estimado</div>
+            <div class="value" id="totalEstimado">$0</div>
+          </div>
+
+          <button type="submit" class="btn btn-oxuma w-100">
+            <i class="bi bi-bag-check-fill me-1"></i>Crear pedido
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIG DESCUENTOS POR CANTIDAD -->
+  <div class="col-md-3 mt-0">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-percent me-2" style="color:var(--accent)"></i>Descuentos por volumen</span>
+        <span class="badge-cat" style="font-size:.65rem">Global · todos los productos</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px">
+          El descuento se aplica automáticamente sobre el precio base de cada producto según la cantidad del pedido.
+        </p>
+        <form id="reglasForm">
+          <table class="table table-sm mb-2" style="font-size:.82rem">
+            <thead>
+              <tr>
+                <th style="color:var(--text-muted);font-weight:600">Cant. mínima</th>
+                <th style="color:var(--text-muted);font-weight:600">% descuento</th>
+                <th style="color:var(--text-muted);font-weight:600">Ejemplo base $10.000</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in precio_reglas %}
+              <tr>
+                <td><span class="qty-btn active" style="cursor:default;pointer-events:none">× {{ r.cantidad_minima }}</span></td>
+                <td>
+                  <div class="input-group input-group-sm" style="width:90px">
+                    <input type="number" name="regla_{{ r.id }}"
+                           data-regla-id="{{ r.id }}"
+                           value="{{ r.descuento_pct }}" min="0" max="99" step="0.5"
+                           class="form-control form-control-sm text-center regla-input"
+                           oninput="updateTotal(); actualizarEjemplo(this)">
+                    <span class="input-group-text" style="font-size:.72rem;padding:2px 6px">%</span>
+                  </div>
+                </td>
+                <td class="ejemplo-precio" style="color:var(--accent);font-weight:700">
+                  ${{ "{:,.0f}".format(10000 * (1 - r.descuento_pct / 100)) }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <button type="button" id="btnGuardarReglas" onclick="guardarReglas()"
+                  class="btn btn-oxuma btn-sm w-100">
+            <i class="bi bi-check2-circle me-1"></i>Guardar descuentos
+          </button>
+        </form>
+        <div class="mt-2" style="font-size:.7rem;color:var(--text-muted)">
+          <i class="bi bi-info-circle me-1"></i>Ponés 0% para desactivar un escalón.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTA PEDIDOS -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-list-check me-2" style="color:var(--accent)"></i>Pedidos registrados</span>
+        <span class="badge-cat">{{ pedidos|length }} pedidos</span>
+      </div>
+      <div class="card-body p-0">
+        {% if pedidos %}
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Fecha</th>
+              <th class="text-end">Total</th>
+              <th class="text-center">Estado</th>
+              <th>Actualizar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in pedidos %}
+            <tr>
+              <td style="color:var(--text-muted);font-size:.82rem;font-weight:600">#{{ p.id }}</td>
+              <td>
+                <span style="font-weight:700;color:var(--primary);font-size:.88rem">
+                  {{ p.cliente_nombre or 'Venta directa' }}
+                </span>
+              </td>
+              <td style="font-size:.82rem;color:var(--text-muted)">
+                {{ p.fecha[:16].replace('T',' ') if p.fecha else '—' }}
+              </td>
+              <td class="text-end">
+                <span class="precio">${{ "{:,.0f}".format(p.total) }}</span>
+              </td>
+              <td class="text-center">
+                <span class="estado-pill estado-{{ p.estado }}">{{ p.estado }}</span>
+              </td>
+              <td>
+                <form method="post" action="/pedido/estado/{{ p.id }}" class="d-flex gap-1">
+                  <select name="estado" class="form-select form-select-sm" style="font-size:.75rem;width:115px;border-radius:8px">
+                    <option {% if p.estado=='pendiente'  %}selected{% endif %}>pendiente</option>
+                    <option {% if p.estado=='confirmado' %}selected{% endif %}>confirmado</option>
+                    <option {% if p.estado=='entregado'  %}selected{% endif %}>entregado</option>
+                    <option {% if p.estado=='cancelado'  %}selected{% endif %}>cancelado</option>
+                  </select>
+                  <button type="submit" class="save-btn">
+                    <i class="bi bi-check2"></i>
+                  </button>
+                </form>
+                <a href="/pedido/{{ p.id }}/boleta" target="_blank"
+                   class="btn btn-sm mt-1 w-100"
+                   style="background:linear-gradient(135deg,#7A3580,#3A0E3A);color:#fff;border-radius:8px;font-size:.75rem;font-weight:700;padding:5px 8px;text-align:center">
+                  <i class="bi bi-receipt me-1"></i>Boleta
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-5" style="color:var(--text-muted)">
+          <div style="font-size:4rem;opacity:.15">🛒</div>
+          <div class="mt-3 fw-bold" style="color:var(--primary)">No hay pedidos registrados</div>
+          <div class="mt-1" style="font-size:.85rem">Usá el formulario de la izquierda para crear el primero</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Reglas de descuento globales (del servidor) ──
+const PRECIO_REGLAS = [
+  {% for r in precio_reglas %}
+  { id: {{ r.id }}, cantidad_minima: {{ r.cantidad_minima }}, descuento_pct: {{ r.descuento_pct }}, etiqueta: "{{ r.etiqueta }}" },
+  {% endfor %}
+].sort((a, b) => b.cantidad_minima - a.cantidad_minima); // mayor a menor
+
+function getPrecioTier(opt, qty) {
+  if (!opt) return 0;
+  const base = parseFloat(opt.dataset.precio) || 0;
+  for (const r of PRECIO_REGLAS) {
+    if (qty >= r.cantidad_minima && r.descuento_pct > 0) {
+      return Math.round(base * (1 - r.descuento_pct / 100));
+    }
+  }
+  return base;
+}
+
+function getTierLabel(qty) {
+  for (const r of PRECIO_REGLAS) {
+    if (qty >= r.cantidad_minima && r.descuento_pct > 0) {
+      return `${r.descuento_pct}% off`;
+    }
+  }
+  return '';
+}
+
+function addItem() {
+  const div = document.createElement('div');
+  div.className = 'item-row mb-2';
+  div.innerHTML = `
+    <div class="d-flex gap-1 align-items-center">
+      <select name="producto_id[]" class="form-select form-select-sm flex-grow-1" onchange="updateTotal()">
+        <option value="">Seleccionar producto...</option>
+        {% for p in productos %}
+          <option value="{{ p.id }}" data-precio="{{ p.precio_venta }}">{{ p.nombre }} — ${{ "{:,.0f}".format(p.precio_venta) }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="cantidad[]" class="form-control form-control-sm" style="width:58px" value="1" min="1" oninput="updateTotal(); syncPills(this)">
+      <button type="button" onclick="this.closest('.item-row').remove(); updateTotal()"
+              class="btn btn-sm" style="background:var(--danger-pale);color:var(--danger);border:none;border-radius:8px;padding:0 9px">✕</button>
+    </div>
+    <div class="qty-pills mt-1">
+      <span style="font-size:.68rem;color:var(--text-muted)">Cant:</span>
+      <button type="button" class="qty-btn" onclick="setQty(this, 6)">6</button>
+      <button type="button" class="qty-btn" onclick="setQty(this, 12)">12</button>
+      <button type="button" class="qty-btn" onclick="setQty(this, 24)">24</button>
+      <button type="button" class="qty-btn" onclick="setQty(this, 48)">48</button>
+      <button type="button" class="qty-btn" onclick="setQty(this, 96)">96</button>
+      <span class="precio-tier-label ms-1" style="font-size:.68rem;color:var(--accent);font-weight:700"></span>
+    </div>`;
+  document.getElementById('items').appendChild(div);
+}
+
+function setQty(btn, qty) {
+  const row = btn.closest('.item-row');
+  const input = row.querySelector('input[name="cantidad[]"]');
+  input.value = qty;
+  row.querySelectorAll('.qty-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateTotal();
+}
+
+function syncPills(input) {
+  const row = input.closest('.item-row');
+  const qty = parseInt(input.value);
+  row.querySelectorAll('.qty-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.textContent) === qty);
+  });
+}
+
+function updateTotal() {
+  let total = 0;
+  document.querySelectorAll('.item-row').forEach(row => {
+    const sel = row.querySelector('select');
+    const qty = parseInt(row.querySelector('input[name="cantidad[]"]')?.value) || 1;
+    const opt = sel?.selectedOptions[0];
+    const precio = getPrecioTier(opt, qty);
+    total += precio * qty;
+    const label = row.querySelector('.precio-tier-label');
+    if (label) {
+      const disc = getTierLabel(qty);
+      label.textContent = precio > 0 ? `$${precio.toLocaleString('es-AR',{maximumFractionDigits:0})} c/u${disc ? ' · '+disc : ''}` : '';
+    }
+  });
+  document.getElementById('totalEstimado').textContent =
+    '$' + total.toLocaleString('es-AR', {maximumFractionDigits:0});
+}
+
+// ── Ejemplo en tiempo real ──
+function actualizarEjemplo(inp) {
+  const pct = parseFloat(inp.value) || 0;
+  const td = inp.closest('tr').querySelector('.ejemplo-precio');
+  if (td) td.textContent = '$' + Math.round(10000 * (1 - pct/100)).toLocaleString('es-AR');
+}
+
+// ── Guardar reglas de descuento ──
+function guardarReglas() {
+  const form = document.getElementById('reglasForm');
+  const data = new FormData(form);
+  fetch('/config/precios', { method: 'POST', body: data })
+    .then(r => r.json())
+    .then(r => {
+      if (r.ok) {
+        // Actualizar PRECIO_REGLAS en memoria
+        document.querySelectorAll('[data-regla-id]').forEach(inp => {
+          const rid = parseInt(inp.dataset.reglaId);
+          const reg = PRECIO_REGLAS.find(x => x.id === rid);
+          if (reg) reg.descuento_pct = parseFloat(inp.value) || 0;
+        });
+        const btn = document.getElementById('btnGuardarReglas');
+        btn.textContent = '✓ Guardado';
+        btn.style.background = 'var(--success-pale)';
+        btn.style.color = 'var(--success)';
+        setTimeout(() => { btn.textContent = 'Guardar'; btn.style.background=''; btn.style.color=''; }, 2000);
+        updateTotal();
+      }
+    });
+}
+</script>
+{% endblock %}

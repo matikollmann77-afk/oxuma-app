@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Oxuma{% endblock %}
+{% block page_title %}Oxuma{% endblock %}
+{% block page_sub %}Resumen general del negocio · {{ now[:10] if now else '' }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .chart-container { position: relative; height: 270px; }
+
+  /* Stat row debajo del topbar */
+  .stat-strip {
+    display:flex; gap:6px; margin-bottom: 24px; flex-wrap:wrap;
+  }
+  .stat-chip {
+    display:flex; align-items:center; gap:8px;
+    background: var(--bg-card); border:1px solid var(--border);
+    border-radius:12px; padding:10px 18px; font-size:.82rem; color:var(--text-muted);
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-chip strong { color:var(--primary); font-family:'Montserrat',sans-serif; font-weight:800; font-size:.95rem; }
+  .stat-chip i { font-size:1rem; color:var(--accent); }
+
+  /* Historial */
+  .hist-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:.85rem; }
+  .hist-row:last-child { border-bottom:none; }
+  .price-up   { color:var(--success); font-weight:700; }
+  .price-down { color:var(--danger);  font-weight:700; }
+
+  /* Top product list */
+  .top-item { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .top-item:last-child { border-bottom:none; }
+
+  /* Welcome banner */
+  .welcome-banner {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    border-radius: var(--card-radius); padding: 24px 28px;
+    color:#fff; margin-bottom:20px; position:relative; overflow:hidden;
+  }
+  .welcome-banner::after {
+    content:'🌿';
+    position:absolute; right:24px; top:50%; transform:translateY(-50%);
+    font-size:5rem; opacity:.12; line-height:1;
+  }
+  .welcome-banner h4 {
+    font-family:'Montserrat',sans-serif; font-weight:800; font-size:1.2rem;
+    margin:0 0 4px;
+  }
+  .welcome-banner p { margin:0; opacity:.7; font-size:.88rem; }
+  .banner-highlight {
+    display:inline-block; background:rgba(200,136,46,.25);
+    border:1px solid rgba(200,136,46,.4); border-radius:8px;
+    padding:6px 14px; font-size:.8rem; margin-top:12px; color:var(--accent-light);
+    font-weight:600;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- WELCOME BANNER -->
+<div class="welcome-banner fade-up">
+  <h4>Bienvenido a Oxuma 👋</h4>
+  <p>Sistema de gestión de precios y catálogo para tu distribuidora de aromas</p>
+  <span class="banner-highlight"><i class="bi bi-lightning-charge-fill me-1"></i>{{ total_productos }} productos activos en catálogo</span>
+</div>
+
+<!-- KPI CARDS -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3 fade-up fade-up-1">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:linear-gradient(135deg,#1E1140,#2E1D5E)">
+        <i class="bi bi-box-seam" style="color:#fff;font-size:1.4rem"></i>
+      </div>
+      <div>
+        <div class="kpi-val">{{ total_productos }}</div>
+        <div class="kpi-label">Productos activos</div>
+        <div class="kpi-trend trend-up"><i class="bi bi-arrow-up-right"></i> En catálogo</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 fade-up fade-up-2">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:linear-gradient(135deg,#4E8B65,#6AAD82)">
+        <i class="bi bi-people-fill" style="color:#fff;font-size:1.4rem"></i>
+      </div>
+      <div>
+        <div class="kpi-val">{{ total_clientes }}</div>
+        <div class="kpi-label">Clientes</div>
+        <div class="kpi-trend" style="color:var(--text-muted)"><i class="bi bi-person-plus"></i> Registrados</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 fade-up fade-up-3">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:linear-gradient(135deg,#C8882E,#E8B84B)">
+        <i class="bi bi-bag-check-fill" style="color:#fff;font-size:1.4rem"></i>
+      </div>
+      <div>
+        <div class="kpi-val">{{ total_pedidos }}</div>
+        <div class="kpi-label">Pedidos totales</div>
+        <div class="kpi-trend" style="color:var(--text-muted)"><i class="bi bi-cart"></i> Registrados</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 fade-up fade-up-4">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:linear-gradient(135deg,#C94B5E,#E86878)">
+        <i class="bi bi-currency-dollar" style="color:#fff;font-size:1.4rem"></i>
+      </div>
+      <div>
+        <div class="kpi-val" style="font-size:1.3rem">${{ "{:,.0f}".format(valor_catalogo) }}</div>
+        <div class="kpi-label">Valor del catálogo</div>
+        <div class="kpi-trend trend-up"><i class="bi bi-graph-up"></i> Precio venta total</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS ROW 1 -->
+<div class="row g-3 mb-3">
+  <div class="col-md-5">
+    <div class="card h-100 fade-up">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-pie-chart-fill me-2" style="color:var(--accent)"></i>Por Categoría</span>
+        <span class="badge-cat">{{ por_categoria | length }} categorías</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="chartCategoria"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card h-100 fade-up fade-up-1">
+      <div class="card-header">
+        <i class="bi bi-bar-chart-fill me-2" style="color:var(--accent)"></i>Distribución de Precios (ARS)
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="chartPrecios"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS ROW 2 -->
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card h-100 fade-up">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-trophy-fill me-2" style="color:var(--accent)"></i>Top 10 más caros</span>
+        <a href="/catalogo?orden=precio_desc" class="btn btn-oxuma-outline btn-sm">Ver todos</a>
+      </div>
+      <div class="card-body" style="overflow-y:auto;max-height:300px;padding:16px 22px">
+        {% for p in top10 %}
+        <div class="top-item">
+          <div class="product-mini-rank {% if loop.index == 1 %}rank-1{% elif loop.index == 2 %}rank-2{% elif loop.index == 3 %}rank-3{% else %}rank-n{% endif %}">
+            {{ loop.index }}
+          </div>
+          <div class="flex-grow-1 overflow-hidden">
+            <div style="font-weight:600;font-size:.83rem;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.nombre }}</div>
+            <div style="font-size:.72rem;color:var(--text-muted)">{{ p.categoria }} · <span class="badge-marca">{{ p.marca }}</span></div>
+          </div>
+          <div class="precio" style="font-size:.9rem;white-space:nowrap">${{ "{:,.0f}".format(p.precio_venta) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100 fade-up fade-up-1">
+      <div class="card-header">
+        <i class="bi bi-building me-2" style="color:var(--accent)"></i>Productos por Marca
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="chartMarca"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORIAL DE PRECIOS -->
+<div class="row g-3">
+  <div class="col-12">
+    <div class="card fade-up">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history me-2" style="color:var(--accent)"></i>Últimas actualizaciones de precios</span>
+      </div>
+      <div class="card-body">
+        {% if historial %}
+          {% for h in historial %}
+          <div class="hist-row">
+            <i class="bi bi-calendar3" style="color:var(--text-muted);font-size:.85rem"></i>
+            <span style="color:var(--text-muted);font-size:.75rem;white-space:nowrap">{{ h.fecha[:10] }}</span>
+            <span class="flex-grow-1" style="font-weight:600;font-size:.85rem">{{ h.producto_nombre }}</span>
+            <span style="color:var(--text-muted)">${{ "{:,.0f}".format(h.precio_anterior) }}</span>
+            <i class="bi bi-arrow-right" style="color:var(--text-muted)"></i>
+            <span class="{{ 'price-up' if h.precio_nuevo > h.precio_anterior else 'price-down' }}">
+              ${{ "{:,.0f}".format(h.precio_nuevo) }}
+            </span>
+            <span class="badge-marca" style="font-size:.7rem">{{ h.motivo }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4" style="color:var(--text-muted)">
+            <div style="font-size:3rem;opacity:.2">📊</div>
+            <div class="mt-2" style="font-size:.9rem">Aún no hay actualizaciones de precios</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const C = window.OXUMA_COLORS;
+
+// Chart 1: Categorías (donut)
+const catLabels = {{ por_categoria | map(attribute='categoria') | list | tojson }};
+const catData   = {{ por_categoria | map(attribute='cantidad') | list | tojson }};
+new Chart(document.getElementById('chartCategoria'), {
+  type: 'doughnut',
+  data: { labels: catLabels, datasets: [{ data: catData, backgroundColor: C.palette, borderWidth: 3, borderColor: '#fff', hoverOffset: 8 }] },
+  options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 10, usePointStyle: true } } } }
+});
+
+// Chart 2: Distribución de precios
+const rangoLabels = {{ rangos | map(attribute='rango') | list | tojson }};
+const rangoData   = {{ rangos | map(attribute='cantidad') | list | tojson }};
+new Chart(document.getElementById('chartPrecios'), {
+  type: 'bar',
+  data: { labels: rangoLabels, datasets: [{ label: 'Productos', data: rangoData,
+      backgroundColor: rangoData.map((_,i) => i%2===0 ? 'rgba(200,136,46,.75)' : 'rgba(200,136,46,.45)'),
+      borderColor: C.accent, borderWidth: 2, borderRadius: 8, borderSkipped: false }] },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, grid: { color: '#F0EBE3' }, ticks: { color: C.muted } },
+              x: { grid: { display: false }, ticks: { color: C.muted, font: { size: 10 }, maxRotation: 30 } } } }
+});
+
+// Chart 3: Por marca
+const marcaLabels = {{ por_marca | map(attribute='marca') | list | tojson }};
+const marcaData   = {{ por_marca | map(attribute='cantidad') | list | tojson }};
+new Chart(document.getElementById('chartMarca'), {
+  type: 'bar',
+  data: { labels: marcaLabels, datasets: [{ label: 'Productos', data: marcaData,
+      backgroundColor: [C.accent, C.primary, C.success, C.warning, C.danger, '#2E1D5E'],
+      borderWidth: 0, borderRadius: 6 }] },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true, grid: { color: '#F0EBE3' }, ticks: { color: C.muted } },
+              y: { grid: { display: false }, ticks: { color: C.primary, font: { size: 11, weight: '600' } } } } }
+});
+</script>
+{% endblock %}

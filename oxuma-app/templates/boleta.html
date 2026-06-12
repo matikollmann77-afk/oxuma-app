@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boleta #{{ numero }} — Oxuma</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f0e8f0; color: #2d2d2d; padding: 30px; }
+
+    /* ── TOGGLE IVA (solo pantalla) ── */
+    .iva-toggle-bar {
+      max-width: 700px; margin: 0 auto 18px;
+      display: flex; align-items: center; justify-content: center; gap: 0;
+      background: #fff; border-radius: 14px;
+      border: 2px solid #6B2D6B;
+      overflow: hidden; box-shadow: 0 2px 12px rgba(107,45,107,.15);
+    }
+    .iva-toggle-bar .toggle-label {
+      padding: 0 18px; font-family: 'Montserrat', sans-serif;
+      font-size: .8rem; font-weight: 700; color: #9A7A9A;
+      border-right: 2px solid #EDD8ED;
+    }
+    .toggle-btn {
+      flex: 1; border: none; padding: 13px 20px;
+      font-family: 'Montserrat', sans-serif; font-weight: 700;
+      font-size: .9rem; cursor: pointer; transition: all .2s;
+    }
+    .toggle-btn.active   { background: #6B2D6B; color: #fff; }
+    .toggle-btn.inactive { background: #fff; color: #6B2D6B; }
+    .toggle-btn:first-of-type { border-right: 1px solid #EDD8ED; }
+
+    /* ── ACCIONES ── */
+    .btn-bar {
+      max-width: 700px; margin: 0 auto 16px;
+      display: flex; gap: 10px; justify-content: space-between;
+    }
+    .btn-volver {
+      background: #fff; color: #6B2D6B; border: 2px solid #6B2D6B;
+      border-radius: 10px; padding: 10px 20px;
+      font-family: 'Montserrat', sans-serif; font-weight: 700;
+      font-size: .9rem; cursor: pointer; text-decoration: none;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-imprimir {
+      background: linear-gradient(135deg, #7A3580, #3A0E3A); color: #fff;
+      border: none; border-radius: 10px; padding: 10px 24px;
+      font-family: 'Montserrat', sans-serif; font-weight: 700;
+      font-size: .9rem; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── BOLETA ── */
+    .boleta { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(107,45,107,.15); overflow: hidden; }
+
+    .boleta-header {
+      background: #fff;
+      border-bottom: 4px solid #6B2D6B;
+      padding: 12px 36px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .header-logo img { height: 110px; max-width: 220px; object-fit: contain; filter: brightness(0) invert(1); }
+    .logo-fallback { font-family: 'Montserrat', sans-serif; font-size: 2rem; font-weight: 800; color: #4A1A4A; }
+    .header-info { text-align: right; }
+    .boleta-tipo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 800; color: #4A1A4A; }
+    .boleta-tipo span { font-size: .85rem; font-weight: 500; color: #9A7A9A; display: block; margin-top: 2px; }
+    .boleta-num  { font-size: .85rem; color: #9A7A9A; margin-top: 4px; }
+    .boleta-fecha { font-size: .75rem; color: #C0A8C0; margin-top: 2px; }
+
+    .boleta-body {
+      padding: 16px 36px;
+      position: relative;
+    }
+    .boleta-body::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      height: 90%;
+      background: url("{{ url_for('static', filename='oxuma-watermark.png') }}") center/contain no-repeat;
+      opacity: 0.06;
+      pointer-events: none;
+      z-index: 0;
+    }
+    /* Asegurar que el contenido quede sobre la marca de agua */
+    .boleta-body > * { position: relative; z-index: 1; }
+    .seccion-titulo { font-family: 'Montserrat', sans-serif; font-size: .62rem; font-weight: 800; color: #6B2D6B; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+
+    .cliente-box { background: #FAF0F4; border-left: 4px solid #6B2D6B; border-radius: 0 10px 10px 0; padding: 8px 14px; margin-bottom: 14px; }
+    .cliente-nombre { font-family: 'Montserrat', sans-serif; font-size: 1rem; font-weight: 800; color: #4A1A4A; }
+    .cliente-detalle { font-size: .8rem; color: #9A7A9A; margin-top: 4px; }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 22px; }
+    thead th { background: #6B2D6B; color: #fff; font-family: 'Montserrat', sans-serif; font-size: .62rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; padding: 7px 10px; }
+    thead th:first-child { border-radius: 8px 0 0 0; } thead th:last-child { border-radius: 0 8px 0 0; }
+    tbody tr:nth-child(even) { background: #FAF0F4; }
+    tbody td { padding: 4px 10px; font-size: .76rem; border-bottom: 1px solid #EDD8ED; vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    .td-nombre { font-weight: 600; color: #4A1A4A; }
+    .td-marca  { font-size: .65rem; color: #9A7A9A; }
+    .td-right  { text-align: right; }
+    .td-center { text-align: center; }
+
+    .totales-box { margin-left: auto; width: 280px; margin-bottom: 24px; }
+    .totales-row { display: flex; justify-content: space-between; padding: 7px 0; font-size: .875rem; border-bottom: 1px solid #EDD8ED; }
+    .totales-row:last-child { border-bottom: none; }
+    .totales-row.grand-total { font-family: 'Montserrat', sans-serif; font-size: 1.2rem; font-weight: 800; color: #6B2D6B; padding: 12px 0; border-top: 2px solid #6B2D6B; }
+    .totales-row .label { color: #9A7A9A; }
+    .totales-row .valor { font-weight: 600; color: #4A1A4A; }
+
+    .boleta-footer { background: #FAF0F4; border-top: 2px solid #EDD8ED; padding: 18px 36px; display: flex; align-items: center; justify-content: space-between; font-size: .75rem; color: #9A7A9A; }
+    .footer-gracias { font-family: 'Montserrat', sans-serif; font-weight: 700; color: #6B2D6B; font-size: .85rem; }
+
+    .marcas-strip {
+      background: #fff; border-top: 1px solid #EDD8ED;
+      padding: 14px 36px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .marcas-label { font-family: 'Montserrat', sans-serif; font-size: .58rem; font-weight: 800; color: #C8C0C8; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap; }
+    .marcas-logos { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+    .marca-logo-wrap img { height: 38px; max-width: 120px; object-fit: contain; filter: grayscale(1) opacity(.7); transition: filter .2s; }
+    .marca-logo-wrap img:hover { filter: grayscale(0) opacity(1); }
+    .marca-logo-text { font-family: 'Montserrat', sans-serif; font-size: .75rem; font-weight: 800; color: #9A7A9A; letter-spacing: 1px; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .iva-toggle-bar, .btn-bar { display: none !important; }
+      .boleta { box-shadow: none; border-radius: 0; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOGGLE IVA -->
+<div class="iva-toggle-bar">
+  <span class="toggle-label">¿Incluye IVA?</span>
+  <button id="btnSinIva" class="toggle-btn active" onclick="setIva(false)">
+    Sin IVA &nbsp;·&nbsp; Consumidor Final
+  </button>
+  <button id="btnConIva" class="toggle-btn inactive" onclick="setIva(true)">
+    Con IVA 21% &nbsp;·&nbsp; Factura
+  </button>
+</div>
+
+<!-- ACCIONES -->
+<div class="btn-bar">
+  <a href="/pedidos" class="btn-volver">← Volver a pedidos</a>
+  <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / PDF</button>
+</div>
+
+<!-- BOLETA -->
+<div class="boleta">
+  <div class="boleta-header">
+    <div class="header-logo">
+      <div style="font-family:'Montserrat',sans-serif;font-size:.6rem;font-weight:700;color:#C0A8C0;letter-spacing:3px;text-transform:uppercase">Distribuidora de<br>Productos Aromáticos</div>
+    </div>
+    <div class="header-info">
+      <div class="boleta-tipo">
+        <img src="{{ url_for('static', filename='oxuma-watermark.png') }}"
+             alt="Oxuma"
+             style="height:72px;max-width:220px;object-fit:contain;display:block;margin-left:auto">
+        <span id="label-iva-header" style="font-size:.65rem;font-weight:400;opacity:.55;margin-top:2px;display:block;text-align:right">Consumidor Final</span>
+      </div>
+      <div class="boleta-num" style="font-size:.72rem">N° {{ numero }}</div>
+      <div class="boleta-fecha" style="font-size:.65rem">{{ fecha }}</div>
+    </div>
+  </div>
+
+  <div class="boleta-body">
+
+    <!-- Cliente -->
+    <div class="seccion-titulo">Cliente</div>
+    <div class="cliente-box">
+      {% if pedido.cliente_nombre %}
+        <div class="cliente-nombre">{{ pedido.cliente_nombre }}</div>
+        <div class="cliente-detalle">
+          {% if pedido.cuit %}CUIT: {{ pedido.cuit }}{% endif %}
+          {% if pedido.direccion %} · {{ pedido.direccion }}{% endif %}
+          {% if pedido.telefono %} · {{ pedido.telefono }}{% endif %}
+        </div>
+      {% else %}
+        <div class="cliente-nombre">Consumidor Final</div>
+      {% endif %}
+      {% if pedido.notas %}
+        <div class="cliente-detalle" style="margin-top:6px;font-style:italic">{{ pedido.notas }}</div>
+      {% endif %}
+    </div>
+
+    <!-- Productos -->
+    <div class="seccion-titulo">Detalle de productos</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="td-center">Cant.</th>
+          <th class="td-right">P. Unit.</th>
+          <th class="td-right">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>
+            <div class="td-nombre">{{ item.nombre }}</div>
+            <div class="td-marca">{{ item.marca }} · {{ item.categoria }}</div>
+          </td>
+          <td class="td-center">{{ item.cantidad }}</td>
+          <td class="td-right">${{ "{:,.0f}".format(item.precio_unitario) }}</td>
+          <td class="td-right">${{ "{:,.0f}".format(item.precio_unitario * item.cantidad) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Totales -->
+    <div class="totales-box">
+      <div class="totales-row" id="row-subtotal" style="display:none">
+        <span class="label">Subtotal (sin IVA)</span>
+        <span class="valor">${{ "{:,.0f}".format(subtotal) }}</span>
+      </div>
+      <div class="totales-row" id="row-iva" style="display:none">
+        <span class="label">IVA 21%</span>
+        <span class="valor">${{ "{:,.2f}".format(iva) }}</span>
+      </div>
+      <div class="totales-row grand-total">
+        <span>TOTAL</span>
+        <span id="val-total">${{ "{:,.0f}".format(subtotal) }}</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="boleta-footer">
+    <div>
+      <div class="footer-gracias">¡Gracias por tu compra!</div>
+      <div>Oxuma · Distribuidora de Productos Aromáticos</div>
+    </div>
+    <div style="text-align:right">
+      <div>Estado: <strong style="color:#6B2D6B">{{ pedido.estado | upper }}</strong></div>
+      <div>Pedido #{{ pedido.id }}</div>
+    </div>
+  </div>
+
+  <!-- LOGOS DE MARCAS DISTRIBUIDAS -->
+  <div class="marcas-strip">
+    <span class="marcas-label">Distribuidores oficiales de</span>
+    <div class="marcas-logos">
+      <div class="marca-logo-wrap">
+        <img src="https://saphirus.com.ar/wp-content/uploads/2025/09/Saphirus-Aromatiza-1-1.svg"
+             alt="Saphirus"
+             onerror="this.outerHTML='<span class=marca-logo-text>SAPHIRUS</span>'">
+      </div>
+      <div class="marca-logo-wrap">
+        <img src="{{ url_for('static', filename='aromanza-logo.png') }}"
+             alt="Aromanza"
+             onerror="this.outerHTML='<span class=marca-logo-text>AROMANZA</span>'"
+             style="height:48px;max-width:140px;mix-blend-mode:multiply;filter:grayscale(1)">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUBTOTAL = {{ subtotal }};
+const IVA      = {{ iva }};
+const TOTAL    = {{ total }};
+
+function fmt(n) { return '$' + Math.round(n).toLocaleString('es-AR'); }
+
+function setIva(conIva) {
+  document.getElementById('row-subtotal').style.display = conIva ? 'flex' : 'none';
+  document.getElementById('row-iva').style.display      = conIva ? 'flex' : 'none';
+  document.getElementById('val-total').textContent      = conIva ? fmt(TOTAL) : fmt(SUBTOTAL);
+  document.getElementById('label-iva-header').textContent = conIva ? 'Con IVA 21%' : 'Consumidor Final';
+
+  document.getElementById('btnSinIva').className = 'toggle-btn ' + (conIva ? 'inactive' : 'active');
+  document.getElementById('btnConIva').className = 'toggle-btn ' + (conIva ? 'active'   : 'inactive');
+}
+
+setIva(false); // default: sin IVA
+</script>
+</body>
+</html>

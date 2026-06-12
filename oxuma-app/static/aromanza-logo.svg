@@ -1,0 +1,41 @@
+<svg viewBox="0 0 220 280" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Círculo exterior -->
+  <circle cx="110" cy="100" r="72" stroke="#111" stroke-width="3.5"/>
+
+  <!-- Pétalo central (arriba) -->
+  <path d="M110 42 C104 58 100 72 110 88 C120 72 116 58 110 42Z"
+        stroke="#111" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Pétalo izquierdo interno -->
+  <path d="M110 88 C98 78 84 76 81 87 C86 97 102 97 110 88Z"
+        stroke="#111" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Pétalo derecho interno -->
+  <path d="M110 88 C122 78 136 76 139 87 C134 97 118 97 110 88Z"
+        stroke="#111" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Pétalo izquierdo externo -->
+  <path d="M81 87 C72 74 60 72 57 84 C62 96 80 97 81 87Z"
+        stroke="#111" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Pétalo derecho externo -->
+  <path d="M139 87 C148 74 160 72 163 84 C158 96 140 97 139 87Z"
+        stroke="#111" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Base / cáliz del loto -->
+  <path d="M84 100 Q97 110 110 108 Q123 110 136 100"
+        stroke="#111" stroke-width="2.2" stroke-linecap="round"/>
+
+  <!-- Línea base inferior del loto -->
+  <path d="M95 108 Q110 116 125 108"
+        stroke="#111" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Texto "aromanza" -->
+  <text x="110" y="212"
+        text-anchor="middle"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="32"
+        font-weight="300"
+        letter-spacing="3"
+        fill="#111">aromanza</text>
+</svg>

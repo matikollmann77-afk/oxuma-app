@@ -1,0 +1,60 @@
+═══════════════════════════════════════════════════════════
+  OXUMA DISTRIBUIDORA — Sistema de Gestión v1.0
+  Instrucciones de instalación y uso
+═══════════════════════════════════════════════════════════
+
+REQUISITOS
+──────────
+- Python 3.8 o superior (descargar en https://python.org)
+- Conexión a internet para la primera instalación
+
+INSTALACIÓN (solo la primera vez)
+──────────────────────────────────
+1. Abrí una terminal (CMD o PowerShell) en esta carpeta
+2. Ejecutá:
+   pip install flask openpyxl
+
+CÓMO ARRANCAR EL SISTEMA
+──────────────────────────
+1. Abrí CMD o PowerShell en esta carpeta
+2. Ejecutá:
+   python app.py
+3. Abrí tu navegador y entrá a:
+   http://localhost:5000
+
+FUNCIONALIDADES
+───────────────
+✅ Dashboard con gráficos por categoría y marca
+✅ Catálogo completo con 275 productos (de oxumadistribuidora.runasp.net)
+✅ Búsqueda y filtros por categoría y marca
+✅ Editor de precios por producto (costo + margen = precio venta)
+✅ Actualización masiva de márgenes por categoría
+✅ Subir lista de proveedor en Excel → precios se actualizan solos
+✅ Historial de cambios de precios
+✅ Gestión de clientes
+✅ Pedidos y ventas
+✅ Exportar catálogo a Excel
+
+CÓMO ACTUALIZAR PRECIOS CON LISTA DEL PROVEEDOR
+─────────────────────────────────────────────────
+1. Creá un Excel con dos columnas:
+   - Columna A: Nombre exacto del producto
+   - Columna B: Nuevo precio de costo
+2. Andá a "Precios & Márgenes" en el menú
+3. Arrastrá o seleccioná el archivo
+4. El sistema aplica automáticamente el margen guardado de cada producto
+
+ACCESO REMOTO (para trabajar desde otro lugar)
+───────────────────────────────────────────────
+Para acceder desde otra computadora o celular, podemos
+deployarlo gratis en Railway.app o Render.com.
+Consultá con quien te configuró el sistema.
+
+PRÓXIMAMENTE
+─────────────
+🔜 Facturación electrónica con ARCA/AFIP
+🔜 Reportes de ventas mensuales
+🔜 Alertas de stock bajo
+🔜 App móvil
+
+═══════════════════════════════════════════════════════════

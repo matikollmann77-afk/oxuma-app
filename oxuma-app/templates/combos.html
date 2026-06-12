@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block title %}Combos & Promociones — Oxuma{% endblock %}
+{% block page_title %}Combos & Promociones{% endblock %}
+{% block page_sub %}Packs especiales para venta minorista · {{ combos|length }} activos{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── COMBO CARD ── */
+  .combo-card {
+    border-radius: var(--card-radius); background: var(--bg-card);
+    box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+    transition: box-shadow .2s, transform .2s; overflow: hidden;
+  }
+  .combo-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+  .combo-header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .combo-title {
+    font-family: 'Montserrat', sans-serif; font-weight: 800;
+    font-size: 1rem; color: var(--primary); line-height: 1.2;
+  }
+  .combo-desc {
+    font-size: .78rem; color: var(--text-muted); margin-top: 4px;
+  }
+
+  /* Badge IA */
+  .badge-ia {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: linear-gradient(135deg, #7C3AED, #A855F7);
+    color: #fff; border-radius: 20px; padding: 3px 10px;
+    font-size: .62rem; font-weight: 800; letter-spacing: .5px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* Productos dentro del combo */
+  .combo-items { padding: 14px 22px; }
+  .combo-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+    font-size: .82rem;
+  }
+  .combo-item:last-child { border-bottom: none; }
+  .combo-item .qty-badge {
+    width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: #fff; font-size: .7rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Montserrat', sans-serif;
+  }
+  .combo-item .item-name { flex: 1; font-weight: 600; color: var(--primary); }
+  .combo-item .item-price { color: var(--text-muted); font-size: .78rem; }
+
+  /* Footer precio */
+  .combo-footer {
+    padding: 14px 22px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .combo-precio-orig {
+    font-size: .75rem; color: rgba(255,255,255,.5);
+    text-decoration: line-through;
+  }
+  .combo-precio-combo {
+    font-family: 'Montserrat', sans-serif; font-weight: 800;
+    font-size: 1.4rem; color: var(--accent-light); line-height: 1;
+  }
+  .combo-ahorro {
+    text-align: right;
+  }
+  .combo-ahorro .badge-ahorro {
+    display: inline-block; background: rgba(200,136,46,.25);
+    border: 1px solid rgba(200,136,46,.4); border-radius: 20px;
+    padding: 4px 12px; color: var(--accent-light);
+    font-size: .75rem; font-weight: 800;
+  }
+  .combo-ahorro .pct-big {
+    font-family: 'Montserrat', sans-serif; font-weight: 800;
+    font-size: 1.6rem; color: #4ade80; line-height: 1;
+    display: block;
+  }
+
+  /* Acciones */
+  .combo-actions {
+    padding: 10px 22px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px;
+  }
+
+  /* Panel nueva promo */
+  .new-panel {
+    background: var(--bg-card); border-radius: var(--card-radius);
+    border: 2px dashed var(--border); padding: 24px;
+    transition: border-color .2s;
+  }
+  .new-panel:hover { border-color: var(--accent); }
+
+  /* Form combo */
+  .item-row {
+    display: grid; grid-template-columns: 1fr 80px 36px; gap: 8px;
+    align-items: center; margin-bottom: 8px;
+  }
+
+  /* Sugerir IA button */
+  .btn-ia {
+    background: linear-gradient(135deg, #7C3AED, #A855F7);
+    border: none; color: #fff; border-radius: 12px; font-weight: 700;
+    padding: 10px 22px; transition: all .2s; font-size: .9rem;
+    font-family: 'Montserrat', sans-serif;
+    box-shadow: 0 3px 12px rgba(124,58,237,.35);
+  }
+  .btn-ia:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 5px 18px rgba(124,58,237,.45); }
+
+  /* Empty */
+  .empty-combo { text-align:center; padding:50px 20px; color:var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- TOP BAR -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <span style="font-size:.85rem;color:var(--text-muted)">
+      <i class="bi bi-stars me-1" style="color:var(--accent)"></i>
+      Creá packs y promos para vender más por unidad
+    </span>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="post" action="/combos/sugerir" onsubmit="this.querySelector('.ia-spinner').style.display='inline-block';this.querySelector('.ia-txt').textContent='Generando...'">
+      <button type="submit" class="btn-ia">
+        <i class="bi bi-magic me-2"></i><span class="ia-txt">Sugerir con IA</span>
+        <span class="ia-spinner" style="display:none">
+          <span class="spinner-border spinner-border-sm ms-1"></span>
+        </span>
+      </button>
+    </form>
+    <button class="btn btn-oxuma" onclick="abrirForm()">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo combo
+    </button>
+  </div>
+</div>
+
+<!-- FORM NUEVO / EDITAR (oculto por defecto) -->
+<div id="formCombo" style="display:none" class="mb-4 fade-up">
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span><i class="bi bi-gift me-2" style="color:var(--accent)"></i><span id="formTitle">Nuevo Combo</span></span>
+      <button class="btn btn-sm btn-oxuma-outline" onclick="cerrarForm()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="card-body p-4">
+      <form method="post" action="/combos/guardar" id="comboForm">
+        <input type="hidden" name="combo_id" id="combo_id_hidden">
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Nombre del combo *</label>
+            <input type="text" name="nombre" id="fnombre" class="form-control" required
+                   placeholder="Ej: Kit Relajación Total">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Descripción</label>
+            <input type="text" name="descripcion" id="fdesc" class="form-control"
+                   placeholder="Ej: Ideal para regalar, incluye...">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <label class="form-label mb-0">Productos incluidos</label>
+            <button type="button" class="btn btn-sm btn-oxuma-outline" onclick="agregarProducto()">
+              <i class="bi bi-plus-lg me-1"></i>Agregar
+            </button>
+          </div>
+          <div id="itemsContainer">
+            <!-- Filas dinámicas -->
+          </div>
+        </div>
+
+        <div class="row g-3 align-items-end mb-4">
+          <div class="col-md-4">
+            <label class="form-label">Precio original (auto)</label>
+            <div class="form-control" id="precioOrigDisplay" style="background:var(--bg);font-weight:700;color:var(--text-muted)">$—</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Descuento %</label>
+            <input type="number" id="descPct" class="form-control" min="0" max="80" value="15"
+                   oninput="recalcCombo()">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Precio combo ($) *</label>
+            <input type="number" name="precio_combo" id="fprecio" class="form-control"
+                   required style="font-weight:800;color:var(--accent)" oninput="recalcDesc()">
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-oxuma">
+            <i class="bi bi-check2-circle me-2"></i>Guardar combo
+          </button>
+          <button type="button" class="btn btn-oxuma-outline" onclick="cerrarForm()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- GRID DE COMBOS -->
+{% if combos %}
+<div class="row g-3">
+  {% for c in combos %}
+  <div class="col-md-6 col-lg-4 fade-up">
+    <div class="combo-card">
+      <div class="combo-header">
+        <div>
+          <div class="combo-title">
+            <i class="bi bi-gift-fill me-2" style="color:var(--accent)"></i>{{ c.nombre }}
+          </div>
+          {% if c.descripcion %}
+            <div class="combo-desc">{{ c.descripcion }}</div>
+          {% endif %}
+        </div>
+        {% if c.ia_generado %}
+          <span class="badge-ia"><i class="bi bi-stars"></i> IA</span>
+        {% endif %}
+      </div>
+
+      <div class="combo-items">
+        {% for item in c.combo_items %}
+        <div class="combo-item">
+          <div class="qty-badge">{{ item.cantidad }}</div>
+          <div class="item-name">{{ item.nombre }}</div>
+          <div class="item-price">${{ "{:,.0f}".format(item.precio_venta * item.cantidad) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="combo-footer">
+        <div>
+          {% if c.precio_original > 0 and c.precio_original != c.precio_combo %}
+            <div class="combo-precio-orig">${{ "{:,.0f}".format(c.precio_original) }}</div>
+          {% endif %}
+          <div class="combo-precio-combo">${{ "{:,.0f}".format(c.precio_combo) }}</div>
+        </div>
+        {% if c.ahorro > 0 %}
+        <div class="combo-ahorro">
+          <span class="pct-big">-{{ "%.0f"|format(c.pct_ahorro) }}%</span>
+          <span class="badge-ahorro">Ahorrás ${{ "{:,.0f}".format(c.ahorro) }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="combo-actions">
+        <button class="btn btn-sm btn-edit flex-grow-1"
+                onclick="editarCombo({{ c.id }}, '{{ c.nombre|e }}', '{{ c.descripcion|e }}', {{ c.precio_combo }})">
+          <i class="bi bi-pencil-fill me-1"></i>Editar
+        </button>
+        <form method="post" action="/combos/eliminar/{{ c.id }}"
+              onsubmit="return confirm('¿Eliminar este combo?')" style="flex-grow:1">
+          <button type="submit" class="btn btn-sm btn-del w-100">
+            <i class="bi bi-trash3-fill me-1"></i>Eliminar
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-combo">
+  <div style="font-size:4rem;opacity:.15">🎁</div>
+  <div class="mt-3 fw-bold" style="color:var(--primary);font-size:1.1rem">Sin combos todavía</div>
+  <div class="mt-2" style="font-size:.9rem">
+    Usá <strong style="color:#7C3AED">Sugerir con IA</strong> para generar combos automáticamente,
+    o creá uno manualmente.
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Catálogo de productos disponibles ── */
+const PRODS = [
+  {% for p in productos %}
+  { id: {{ p.id }}, nombre: {{ p.nombre|tojson }}, precio: {{ p.precio_venta }}, cat: {{ p.categoria|tojson }}, marca: {{ p.marca|tojson }} },
+  {% endfor %}
+];
+
+let rowCount = 0;
+let precioOrigTotal = 0;
+
+function abrirForm() {
+  document.getElementById('formCombo').style.display = 'block';
+  document.getElementById('formTitle').textContent = 'Nuevo Combo';
+  document.getElementById('combo_id_hidden').value = '';
+  document.getElementById('fnombre').value = '';
+  document.getElementById('fdesc').value = '';
+  document.getElementById('fprecio').value = '';
+  document.getElementById('itemsContainer').innerHTML = '';
+  document.getElementById('precioOrigDisplay').textContent = '$—';
+  rowCount = 0;
+  precioOrigTotal = 0;
+  agregarProducto();
+  agregarProducto();
+  document.getElementById('formCombo').scrollIntoView({behavior:'smooth'});
+}
+
+function cerrarForm() {
+  document.getElementById('formCombo').style.display = 'none';
+}
+
+function editarCombo(id, nombre, desc, precio) {
+  abrirForm();
+  document.getElementById('formTitle').textContent = 'Editar Combo';
+  document.getElementById('combo_id_hidden').value = id;
+  document.getElementById('fnombre').value = nombre;
+  document.getElementById('fdesc').value = desc;
+  document.getElementById('fprecio').value = precio;
+  document.getElementById('itemsContainer').innerHTML = '';
+  rowCount = 0;
+  agregarProducto();
+}
+
+function agregarProducto() {
+  rowCount++;
+  const id = 'row_' + rowCount;
+  const opts = PRODS.map(p => `<option value="${p.id}" data-precio="${p.precio}">[${p.cat}] ${p.nombre} — $${Math.round(p.precio).toLocaleString('es-AR')}</option>`).join('');
+  const html = `
+    <div class="item-row" id="${id}">
+      <select name="producto_id[]" class="form-select form-select-sm prod-sel" onchange="actualizarTotal()">
+        <option value="">— Elegir producto —</option>
+        ${opts}
+      </select>
+      <input type="number" name="cantidad[]" class="form-control form-control-sm qty-inp" min="1" value="1" oninput="actualizarTotal()">
+      <button type="button" class="btn btn-sm btn-del" onclick="document.getElementById('${id}').remove();actualizarTotal()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>`;
+  document.getElementById('itemsContainer').insertAdjacentHTML('beforeend', html);
+}
+
+function actualizarTotal() {
+  let total = 0;
+  document.querySelectorAll('.item-row').forEach(row => {
+    const sel = row.querySelector('.prod-sel');
+    const qty = parseInt(row.querySelector('.qty-inp').value) || 1;
+    const opt = sel.options[sel.selectedIndex];
+    if (opt && opt.dataset.precio) {
+      total += parseFloat(opt.dataset.precio) * qty;
+    }
+  });
+  precioOrigTotal = total;
+  document.getElementById('precioOrigDisplay').textContent = total > 0
+    ? '$' + Math.round(total).toLocaleString('es-AR')
+    : '$—';
+  recalcCombo();
+}
+
+function recalcCombo() {
+  if (precioOrigTotal <= 0) return;
+  const pct = parseFloat(document.getElementById('descPct').value) || 0;
+  const precio = Math.round(precioOrigTotal * (1 - pct / 100));
+  document.getElementById('fprecio').value = precio;
+}
+
+function recalcDesc() {
+  if (precioOrigTotal <= 0) return;
+  const precio = parseFloat(document.getElementById('fprecio').value) || 0;
+  const pct = ((precioOrigTotal - precio) / precioOrigTotal * 100).toFixed(1);
+  document.getElementById('descPct').value = pct;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+{% block title %}Catálogo — Oxuma{% endblock %}
+{% block page_title %}Catálogo de Productos{% endblock %}
+{% block page_sub %}{{ productos|length }} productos encontrados{% endblock %}
+
+{% block extra_head %}
+<style>
+  .filter-bar {
+    background: var(--bg-card); border-radius: var(--card-radius);
+    padding: 16px 20px; margin-bottom: 20px;
+    box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+  }
+  .filter-select {
+    border-radius: 10px; border: 1.5px solid var(--border);
+    padding: 8px 14px; font-size: .875rem; background: var(--bg);
+    color: var(--text); transition: all .18s;
+  }
+  .filter-select:focus {
+    border-color: var(--accent); outline: none;
+    box-shadow: 0 0 0 3px rgba(200,136,46,.15); background: #fff;
+  }
+
+  /* Buttons en tabla */
+  .btn-edit {
+    color: var(--primary); background: rgba(30,17,64,.07);
+    border: none; border-radius: 8px; padding: 5px 10px; font-size: .8rem;
+    transition: all .15s;
+  }
+  .btn-edit:hover { background: rgba(30,17,64,.14); }
+  .btn-del {
+    color: var(--danger); background: var(--danger-pale);
+    border: none; border-radius: 8px; padding: 5px 10px; font-size: .8rem;
+    transition: all .15s;
+  }
+  .btn-del:hover { background: rgba(201,75,94,.18); }
+
+  /* Separador de categorías */
+  .cat-separator td {
+    background: var(--accent-pale) !important;
+    font-weight: 800; font-size: .72rem; color: var(--accent);
+    letter-spacing: 1.5px; padding: 9px 18px !important;
+    text-transform: uppercase; border-bottom: none !important;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  /* Empty state */
+  .empty-state { text-align:center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-state .empty-icon { font-size: 4rem; opacity: .15; }
+
+  /* Margen pill */
+  .pill-margen {
+    display:inline-block; padding:3px 10px; border-radius:20px;
+    font-size:.72rem; font-weight:700;
+    background: var(--success-pale); color: var(--success);
+  }
+  .pill-margen.low  { background:var(--warning-pale); color:#8a5f0e; }
+  .pill-margen.high { background:var(--success-pale); color:var(--success); }
+
+  /* Precio tabla por cantidad */
+  .btn-precios {
+    background: rgba(200,136,46,.1); color: var(--accent);
+    border: none; border-radius: 7px; padding: 3px 9px;
+    font-size:.72rem; font-weight:700; cursor:pointer; transition: all .15s;
+  }
+  .btn-precios:hover { background: rgba(200,136,46,.2); }
+  .price-grid-row td {
+    background: rgba(200,136,46,.04) !important;
+    padding: 10px 18px !important; border-bottom: 2px solid var(--accent-pale) !important;
+  }
+  .price-grid {
+    display: inline-flex; gap: 6px; flex-wrap:wrap;
+  }
+  .pg-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 7px 14px; text-align: center; min-width: 80px;
+  }
+  .pg-item .pg-qty  { font-size:.65rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; }
+  .pg-item .pg-val  { font-size:.92rem; font-weight:800; color:var(--primary); font-family:'Montserrat',sans-serif; margin-top:2px; }
+  .pg-item .pg-base { font-size:.62rem; color:var(--text-muted); margin-top:2px; }
+  .pg-item .pg-pct  { font-size:.68rem; font-weight:800; margin-top:3px; }
+  .pct-down { color: var(--success); }
+  .pct-up   { color: var(--danger); }
+  .pg-item.best     { border-color:var(--accent); background: var(--accent-pale); }
+  .pg-item.best .pg-val { color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+    <div class="position-relative flex-grow-1" style="min-width:200px;max-width:360px;display:flex;gap:6px">
+      <div class="position-relative flex-grow-1">
+        <i class="bi bi-search position-absolute" style="left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.9rem"></i>
+        <input name="buscar" id="buscadorCat" value="{{ buscar }}" placeholder="Buscar producto..." class="search-box w-100" style="padding-left:34px">
+      </div>
+      <button type="button" id="micBuscador" onclick="micBuscar()" title="Buscar por voz"
+              style="border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--accent);padding:0 12px;cursor:pointer;transition:all .15s;font-size:.95rem">
+        <i class="bi bi-mic-fill"></i>
+      </button>
+    </div>
+    <select name="categoria" class="filter-select">
+      <option value="">Todas las categorías</option>
+      {% for c in categorias %}
+        <option value="{{ c.categoria }}" {% if filtro_cat==c.categoria %}selected{% endif %}>{{ c.categoria }}</option>
+      {% endfor %}
+    </select>
+    <select name="marca" class="filter-select">
+      <option value="">Todas las marcas</option>
+      {% for m in marcas %}
+        <option value="{{ m.marca }}" {% if filtro_marca==m.marca %}selected{% endif %}>{{ m.marca }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-oxuma btn-sm px-4">
+      <i class="bi bi-funnel me-1"></i>Filtrar
+    </button>
+    {% if buscar or filtro_cat or filtro_marca %}
+      <a href="/catalogo" class="btn btn-oxuma-outline btn-sm">
+        <i class="bi bi-x-lg me-1"></i>Limpiar
+      </a>
+    {% endif %}
+    <div class="d-flex gap-2 ms-auto">
+      <a href="/exportar/excel" class="btn btn-oxuma-outline btn-sm">
+        <i class="bi bi-file-earmark-excel me-1"></i>Excel
+      </a>
+      <button type="button" class="btn btn-oxuma-outline btn-sm" data-bs-toggle="modal" data-bs-target="#modalImportar">
+        <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar
+      </button>
+      <a href="/catalogo/nuevo" class="btn btn-oxuma btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Agregar
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- MODAL IMPORTAR -->
+<div class="modal fade" id="modalImportar" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="border-radius:16px;border:none">
+      <div class="modal-header" style="border-bottom:2px solid var(--accent-pale)">
+        <h5 class="modal-title" style="font-family:'Montserrat',sans-serif;font-weight:800;color:var(--primary)">
+          <i class="bi bi-file-earmark-arrow-up me-2" style="color:var(--accent)"></i>Importar productos
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <div class="card h-100" style="border:2px dashed var(--accent-pale);background:var(--bg)">
+              <div class="card-body">
+                <div class="fw-bold mb-1" style="font-size:.85rem;color:var(--primary)">
+                  <i class="bi bi-file-earmark-excel me-1" style="color:#1D6F42"></i>Columnas del archivo
+                </div>
+                <table class="table table-sm mb-0" style="font-size:.78rem">
+                  <thead><tr><th>Columna</th><th>Descripción</th><th>Requerido</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>nombre</code></td><td>Nombre del producto</td><td>✅</td></tr>
+                    <tr><td><code>categoria</code></td><td>Categoría</td><td></td></tr>
+                    <tr><td><code>marca</code></td><td>Marca</td><td></td></tr>
+                    <tr><td><code>codigo</code></td><td>Código interno</td><td></td></tr>
+                    <tr><td><code>precio_costo</code></td><td>Precio de costo</td><td></td></tr>
+                    <tr><td><code>margen</code></td><td>% de margen</td><td></td></tr>
+                    <tr><td><code>precio_venta</code></td><td>Precio de venta</td><td></td></tr>
+                    <tr><td><code>stock</code></td><td>Unidades en stock</td><td></td></tr>
+                  </tbody>
+                </table>
+                <div class="mt-2" style="font-size:.72rem;color:var(--text-muted)">
+                  <i class="bi bi-info-circle me-1"></i>Si ponés costo y margen, el precio de venta se calcula automáticamente. Los nombres de columna no distinguen mayúsculas.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card h-100" style="border:2px dashed var(--accent-pale);background:var(--bg)">
+              <div class="card-body">
+                <div class="fw-bold mb-2" style="font-size:.85rem;color:var(--primary)">
+                  <i class="bi bi-gear me-1" style="color:var(--accent)"></i>Opciones de importación
+                </div>
+                <form method="post" action="/productos/importar" enctype="multipart/form-data" id="formImportar">
+                  <div class="mb-3">
+                    <label class="form-label" style="font-size:.82rem">Archivo (.xlsx o .csv)</label>
+                    <input type="file" name="archivo" class="form-control form-control-sm"
+                           accept=".xlsx,.csv" required id="archivoProductos"
+                           onchange="document.getElementById('nombreArch').textContent = this.files[0]?.name || ''">
+                    <div id="nombreArch" style="font-size:.72rem;color:var(--accent);margin-top:4px;min-height:14px"></div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" style="font-size:.82rem">Si el producto ya existe (mismo nombre):</label>
+                    <div class="d-flex gap-3">
+                      <label class="d-flex align-items-center gap-1" style="font-size:.82rem;cursor:pointer">
+                        <input type="radio" name="modo" value="omitir" checked> Omitir
+                      </label>
+                      <label class="d-flex align-items-center gap-1" style="font-size:.82rem;cursor:pointer">
+                        <input type="radio" name="modo" value="actualizar"> Actualizar precio
+                      </label>
+                      <label class="d-flex align-items-center gap-1" style="font-size:.82rem;cursor:pointer">
+                        <input type="radio" name="modo" value="duplicar"> Duplicar igual
+                      </label>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <div id="importProgress" style="display:none;flex:1">
+                      <div class="progress" style="height:6px;border-radius:10px">
+                        <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width:100%"></div>
+                      </div>
+                      <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">Procesando...</div>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center" style="font-size:.78rem;color:var(--text-muted)">
+          <i class="bi bi-download me-1"></i>
+          <a href="/productos/plantilla" style="color:var(--accent)">Descargar plantilla Excel</a>
+          con encabezados y una fila de ejemplo
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:2px solid var(--accent-pale)">
+        <button type="button" class="btn btn-oxuma-outline btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" form="formImportar" class="btn btn-oxuma btn-sm"
+                onclick="document.getElementById('importProgress').style.display='flex'">
+          <i class="bi bi-upload me-1"></i>Importar productos
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TABLA -->
+<div class="card">
+  <div class="card-body p-0">
+    {% if productos %}
+    <div style="overflow-x:auto">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th style="width:44px">#</th>
+            <th>Producto</th>
+            <th>Categoría</th>
+            <th>Marca</th>
+            <th class="text-end">Costo</th>
+            <th class="text-center">Margen</th>
+            <th class="text-end">Precio Venta</th>
+            <th class="text-center">Stock</th>
+            <th class="text-center" style="width:100px">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set current_cat = namespace(val='') %}
+          {% for p in productos %}
+            {% if p.categoria != current_cat.val %}
+              {% set current_cat.val = p.categoria %}
+              <tr class="cat-separator">
+                <td colspan="9">
+                  <i class="bi bi-folder2-fill me-2"></i>{{ p.categoria }}
+                </td>
+              </tr>
+            {% endif %}
+            <tr>
+              <td style="color:var(--text-muted);font-size:.78rem;font-weight:500">
+                {{ p.id }}
+                {% if p.codigo %}<div style="font-size:.65rem;color:var(--accent);font-weight:700">#{{ p.codigo }}</div>{% endif %}
+              </td>
+              <td>
+                <span style="font-weight:600;color:var(--primary);font-size:.88rem">{{ p.nombre }}</span>
+              </td>
+              <td><span class="badge-cat">{{ p.categoria }}</span></td>
+              <td><span class="badge-marca">{{ p.marca }}</span></td>
+              <td class="text-end">
+                <span class="precio-costo">
+                  {% if p.precio_costo and p.precio_costo > 0 %}
+                    ${{ "{:,.0f}".format(p.precio_costo) }}
+                  {% else %}
+                    <span style="color:var(--border)">—</span>
+                  {% endif %}
+                </span>
+              </td>
+              <td class="text-center">
+                {% if p.margen %}
+                  <span class="pill-margen {% if p.margen < 20 %}low{% elif p.margen >= 35 %}high{% endif %}">
+                    {{ "%.0f"|format(p.margen) }}%
+                  </span>
+                {% else %}
+                  <span style="color:var(--border)">—</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div><span class="precio">${{ "{:,.0f}".format(p.precio_venta) }}</span></div>
+                {% if p.precio_x3 or p.precio_x12 %}
+                  <button class="btn-precios mt-1" onclick="togglePrecios({{ p.id }})">
+                    <i class="bi bi-table me-1"></i>x3–x48
+                  </button>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if p.stock > 10 %}
+                  <span class="estado-pill badge-stock-ok">{{ p.stock }}</span>
+                {% elif p.stock > 0 %}
+                  <span class="estado-pill badge-stock-low">{{ p.stock }}</span>
+                {% else %}
+                  <span class="estado-pill badge-stock-out">0</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <a href="/producto/editar/{{ p.id }}" class="btn-edit me-1"><i class="bi bi-pencil-fill"></i></a>
+                <form method="post" action="/producto/eliminar/{{ p.id }}" style="display:inline"
+                      onsubmit="return confirm('¿Eliminar {{ p.nombre }}?')">
+                  <button type="submit" class="btn-del"><i class="bi bi-trash3-fill"></i></button>
+                </form>
+              </td>
+            </tr>
+            {% if p.precio_x3 or p.precio_x12 or p.precio_x24 or p.precio_x48 %}
+            <tr class="price-grid-row" id="pg_{{ p.id }}" style="display:none">
+              <td colspan="9">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                  <span style="font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Precios por cantidad:</span>
+                  <div class="price-grid">
+                    <div class="pg-item">
+                      <div class="pg-qty">x1</div>
+                      <div class="pg-val">${{ "{:,.0f}".format(p.precio_venta) }}</div>
+                      <div class="pg-base">precio base</div>
+                    </div>
+                    {% if p.precio_x3 and p.precio_x3 > 0 %}
+                      {% set dif_x3 = ((p.precio_x3 - p.precio_venta) / p.precio_venta * 100) | round(1) %}
+                    <div class="pg-item">
+                      <div class="pg-qty">x3</div>
+                      <div class="pg-val">${{ "{:,.0f}".format(p.precio_x3) }}</div>
+                      <div class="pg-pct {% if dif_x3 < 0 %}pct-down{% else %}pct-up{% endif %}">
+                        {% if dif_x3 < 0 %}▼ {{ "%.1f"|format(dif_x3 * -1) }}%{% else %}▲ {{ "%.1f"|format(dif_x3) }}%{% endif %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    {% if p.precio_x12 and p.precio_x12 > 0 %}
+                      {% set dif_x12 = ((p.precio_x12 - p.precio_venta) / p.precio_venta * 100) | round(1) %}
+                    <div class="pg-item">
+                      <div class="pg-qty">x12</div>
+                      <div class="pg-val">${{ "{:,.0f}".format(p.precio_x12) }}</div>
+                      <div class="pg-pct {% if dif_x12 < 0 %}pct-down{% else %}pct-up{% endif %}">
+                        {% if dif_x12 < 0 %}▼ {{ "%.1f"|format(dif_x12 * -1) }}%{% else %}▲ {{ "%.1f"|format(dif_x12) }}%{% endif %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    {% if p.precio_x24 and p.precio_x24 > 0 %}
+                      {% set dif_x24 = ((p.precio_x24 - p.precio_venta) / p.precio_venta * 100) | round(1) %}
+                    <div class="pg-item">
+                      <div class="pg-qty">x24</div>
+                      <div class="pg-val">${{ "{:,.0f}".format(p.precio_x24) }}</div>
+                      <div class="pg-pct {% if dif_x24 < 0 %}pct-down{% else %}pct-up{% endif %}">
+                        {% if dif_x24 < 0 %}▼ {{ "%.1f"|format(dif_x24 * -1) }}%{% else %}▲ {{ "%.1f"|format(dif_x24) }}%{% endif %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    {% if p.precio_x48 and p.precio_x48 > 0 %}
+                      {% set dif_x48 = ((p.precio_x48 - p.precio_venta) / p.precio_venta * 100) | round(1) %}
+                    <div class="pg-item best">
+                      <div class="pg-qty">x48 🔥</div>
+                      <div class="pg-val">${{ "{:,.0f}".format(p.precio_x48) }}</div>
+                      <div class="pg-pct {% if dif_x48 < 0 %}pct-down{% else %}pct-up{% endif %}">
+                        {% if dif_x48 < 0 %}▼ {{ "%.1f"|format(dif_x48 * -1) }}%{% else %}▲ {{ "%.1f"|format(dif_x48) }}%{% endif %}
+                      </div>
+                    </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+            </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="padding:14px 22px; background:var(--accent-pale); border-top:1px solid var(--border);">
+      <div class="d-flex align-items-center justify-content-between">
+        <span style="font-size:.82rem; color:var(--text-muted)">
+          <i class="bi bi-info-circle me-1"></i>
+          Mostrando <strong style="color:var(--primary)">{{ productos|length }}</strong> productos
+          {% if filtro_cat %} · Categoría: <strong>{{ filtro_cat }}</strong>{% endif %}
+          {% if filtro_marca %} · Marca: <strong>{{ filtro_marca }}</strong>{% endif %}
+        </span>
+        <span class="precio" style="font-size:.9rem">
+          Valor filtrado: ${{ "{:,.0f}".format(productos | sum(attribute='precio_venta')) }}
+        </span>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="mt-3 fw-bold" style="color:var(--primary)">No se encontraron productos</div>
+      <div class="mt-1" style="font-size:.88rem">Probá con otros filtros o <a href="/catalogo" style="color:var(--accent)">ver todos</a></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePrecios(pid) {
+  const row = document.getElementById('pg_' + pid);
+  if (!row) return;
+  const visible = row.style.display !== 'none';
+  row.style.display = visible ? 'none' : 'table-row';
+}
+
+// ── Búsqueda por voz en catálogo ────────────────────────────────
+let micRec = null;
+function micBuscar() {
+  const btn = document.getElementById('micBuscador');
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('Usá Chrome para búsqueda por voz.');
+    return;
+  }
+  if (micRec && micRec._on) { micRec.stop(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  micRec = new SR();
+  micRec.lang = 'es-AR'; micRec.interimResults = false; micRec._on = true;
+  btn.style.background = '#C94B5E'; btn.style.color = '#fff'; btn.style.borderColor = '#C94B5E';
+  btn.innerHTML = '<i class="bi bi-stop-circle-fill"></i>';
+  micRec.onresult = (e) => {
+    const txt = e.results[0][0].transcript;
+    document.getElementById('buscadorCat').value = txt;
+    // Auto-submit
+    document.getElementById('buscadorCat').closest('form').submit();
+  };
+  micRec.onend = () => {
+    micRec._on = false;
+    btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = '';
+    btn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+  };
+  micRec.start();
+}
+
+// ── Filtro local instantáneo en tabla ────────────────────────────
+document.getElementById('buscadorCat').addEventListener('input', function() {
+  const term = this.value.toLowerCase();
+  const rows = document.querySelectorAll('tbody tr:not(.cat-separator):not(.price-grid-row)');
+  rows.forEach(row => {
+    const txt = row.textContent.toLowerCase();
+    row.style.display = txt.includes(term) ? '' : 'none';
+  });
+  // Ocultar separadores de categoría vacíos
+  document.querySelectorAll('.cat-separator').forEach(sep => {
+    let sibling = sep.nextElementSibling;
+    let hasVisible = false;
+    while (sibling && !sibling.classList.contains('cat-separator')) {
+      if (!sibling.classList.contains('price-grid-row') && sibling.style.display !== 'none') {
+        hasVisible = true; break;
+      }
+      sibling = sibling.nextElementSibling;
+    }
+    sep.style.display = hasVisible ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

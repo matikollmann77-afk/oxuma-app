@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if producto else 'Nuevo' }} Producto — Oxuma{% endblock %}
+{% block page_title %}{{ 'Editar Producto' if producto else 'Nuevo Producto' }}{% endblock %}
+{% block page_sub %}{{ 'Modificar datos de: ' + producto.nombre if producto else 'Agregar un nuevo producto al catálogo' }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .price-preview {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    border-radius: 14px; padding: 20px 24px; color: #fff; margin-top: 4px;
+  }
+  .price-preview .label { font-size: .75rem; opacity: .65; letter-spacing: .8px; text-transform: uppercase; font-weight: 600; }
+  .price-preview .value { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.8rem; color: var(--accent-light); line-height: 1.1; }
+  .price-preview .sub   { font-size: .8rem; opacity: .6; margin-top: 2px; }
+
+  /* ── DICTADO ── */
+  .mic-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, #C94B5E, #E86878);
+    color: #fff; border: none; border-radius: 12px;
+    padding: 10px 20px; font-size: .9rem; font-weight: 700;
+    cursor: pointer; transition: all .2s;
+    box-shadow: 0 3px 12px rgba(201,75,94,.35);
+    font-family: 'Montserrat', sans-serif;
+  }
+  .mic-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(201,75,94,.45); }
+
+  /* Ondas animadas */
+  .mic-wave-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 100px; height: 100px; margin: 0 auto 12px; }
+  .mic-wave {
+    position: absolute; border-radius: 50%;
+    border: 3px solid rgba(201,75,94,.4);
+    animation: micPulse 1.8s ease-out infinite;
+  }
+  .mic-wave:nth-child(1) { width: 60px; height: 60px; animation-delay: 0s; }
+  .mic-wave:nth-child(2) { width: 80px; height: 80px; animation-delay: .3s; }
+  .mic-wave:nth-child(3) { width: 100px; height: 100px; animation-delay: .6s; }
+  .mic-center {
+    width: 52px; height: 52px; border-radius: 50%; z-index: 2;
+    background: linear-gradient(135deg, #C94B5E, #E86878);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; color: #fff;
+    box-shadow: 0 4px 16px rgba(201,75,94,.5);
+  }
+  @keyframes micPulse {
+    0%   { opacity: .8; transform: scale(.85); }
+    100% { opacity: 0; transform: scale(1.1); }
+  }
+
+  /* Barra de volumen */
+  .vol-bars { display: flex; align-items: flex-end; gap: 3px; height: 28px; justify-content: center; margin: 8px 0; }
+  .vol-bar { width: 5px; border-radius: 3px; background: var(--accent); transition: height .1s; min-height: 4px; }
+
+  /* Step indicator */
+  .step-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(200,136,46,.12); color: var(--accent);
+    border-radius: 20px; padding: 4px 14px; font-size: .78rem; font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  /* Transcript box */
+  .transcript-box {
+    min-height: 52px; background: var(--bg); border-radius: 12px;
+    border: 1.5px solid var(--border); padding: 12px 16px;
+    font-size: 1rem; font-weight: 600; color: var(--primary);
+    text-align: center; margin: 12px 0;
+    transition: border-color .2s;
+  }
+  .transcript-box.listening { border-color: var(--accent); background: rgba(200,136,46,.04); }
+
+  /* Preview campos */
+  .voice-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .voice-field {
+    background: var(--bg); border-radius: 10px; padding: 10px 14px;
+    border: 1px solid var(--border);
+  }
+  .voice-field .vf-label { font-size: .68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  .voice-field .vf-val   { font-size: .95rem; font-weight: 700; color: var(--primary); margin-top: 2px; }
+  .voice-field.filled    { border-color: var(--accent); background: rgba(200,136,46,.05); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-7">
+
+    <!-- BOTÓN DICTAR -->
+    {% if not producto %}
+    <div class="mb-3 fade-up text-center" id="dictadoBtnWrap">
+      <button class="mic-btn" onclick="abrirDictado()">
+        <i class="bi bi-mic-fill"></i> Dictar producto por voz
+      </button>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-top:6px">Requiere Chrome · Habla campo por campo guiado</div>
+    </div>
+    {% endif %}
+
+    <div class="card fade-up">
+      <div class="card-header d-flex align-items-center gap-2">
+        <div class="kpi-icon" style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-light));font-size:1rem">
+          <i class="bi bi-{{ 'pencil-square' if producto else 'plus-circle-fill' }}" style="color:#fff"></i>
+        </div>
+        <span>{{ 'Editar: ' + producto.nombre if producto else 'Agregar nuevo producto al catálogo' }}</span>
+        {% if not producto %}
+        <button class="mic-btn ms-auto" style="padding:6px 14px;font-size:.8rem" onclick="abrirDictado()">
+          <i class="bi bi-mic-fill"></i> Dictar
+        </button>
+        {% endif %}
+      </div>
+      <div class="card-body p-4">
+        <form method="post" id="productoForm">
+
+          <!-- NOMBRE -->
+          <div class="mb-3">
+            <label class="form-label">Nombre del producto <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="nombre" id="f_nombre" class="form-control" required
+                   value="{{ producto.nombre if producto else '' }}"
+                   placeholder="Ej: Aerosol Saphirus 300ml" autofocus>
+          </div>
+
+          <!-- CATEGORÍA / MARCA -->
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label">Categoría</label>
+              <input list="cats" name="categoria" id="f_categoria" class="form-control"
+                     value="{{ producto.categoria if producto else '' }}" placeholder="Seleccionar o ingresar">
+              <datalist id="cats">
+                {% for c in categorias %}<option value="{{ c }}">{% endfor %}
+              </datalist>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Marca</label>
+              <input list="marcas" name="marca" id="f_marca" class="form-control"
+                     value="{{ producto.marca if producto else '' }}" placeholder="Seleccionar o ingresar">
+              <datalist id="marcas">
+                {% for m in marcas %}<option value="{{ m }}">{% endfor %}
+              </datalist>
+            </div>
+          </div>
+
+          <!-- PRECIOS -->
+          <div class="row g-3 mb-3">
+            <div class="col-4">
+              <label class="form-label">Precio costo ($)</label>
+              <input type="number" name="precio_costo" id="precio_costo" class="form-control"
+                     step="0.01" min="0"
+                     value="{{ producto.precio_costo if producto else '' }}"
+                     placeholder="0.00" oninput="calcPrecio()">
+              <div class="form-text" style="font-size:.75rem">Lo que pagás al proveedor</div>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Margen (%)</label>
+              <input type="number" name="margen" id="margen" class="form-control"
+                     step="0.1" min="0"
+                     value="{{ producto.margen if producto else 30 }}" oninput="calcPrecio()">
+              <div class="form-text" style="font-size:.75rem">Ganancia sobre el costo</div>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Precio venta ($)</label>
+              <input type="number" name="precio_venta" id="precio_venta" class="form-control"
+                     step="0.01"
+                     value="{{ '%.0f'|format(producto.precio_venta) if producto else '' }}"
+                     style="font-weight:800;color:var(--accent)">
+              <div class="form-text" style="font-size:.75rem">Precio al público</div>
+            </div>
+          </div>
+
+          <!-- PREVIEW -->
+          <div class="price-preview mb-4" id="pricePreview"
+               style="display:{{ 'flex' if producto and producto.precio_venta else 'none' }};align-items:center;justify-content:space-between;gap:16px">
+            <div>
+              <div class="label">Precio venta</div>
+              <div class="value" id="previewVal">${{ "{:,.0f}".format(producto.precio_venta) if producto else '—' }}</div>
+              <div class="sub" id="previewMargen">Margen: {{ "%.0f"|format(producto.margen) if producto else 30 }}%</div>
+            </div>
+            <div style="text-align:right">
+              <div class="label">Costo</div>
+              <div style="font-size:1.2rem;font-weight:800;opacity:.8">${{ "{:,.0f}".format(producto.precio_costo) if producto else '—' }}</div>
+              <div class="sub" id="previewGanancia">
+                Ganancia: ${{ "{:,.0f}".format(producto.precio_venta - producto.precio_costo) if producto and producto.precio_costo else '—' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- CÓDIGO DE PROVEEDOR -->
+          <div class="mb-3">
+            <label class="form-label">Código de proveedor <span style="color:var(--text-muted);font-weight:400">(opcional)</span></label>
+            <input type="text" name="codigo" id="f_codigo" class="form-control" style="max-width:180px"
+                   value="{{ producto.codigo if producto else '' }}" placeholder="Ej: 1243">
+          </div>
+
+          <!-- PRECIOS POR CANTIDAD -->
+          <div class="mb-4">
+            <div style="font-weight:700;font-size:.85rem;color:var(--primary);font-family:'Montserrat',sans-serif;margin-bottom:10px">
+              <i class="bi bi-grid-3x3 me-2" style="color:var(--accent)"></i>Precios por cantidad
+              <span style="font-size:.72rem;font-weight:400;color:var(--text-muted);margin-left:8px">Dejá en 0 si no aplica</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+              <div>
+                <label class="form-label" style="font-size:.75rem">Por 3 unid.</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="background:var(--accent-pale);border-color:var(--border);font-size:.75rem;font-weight:700;color:var(--accent)">x3</span>
+                  <input type="number" name="precio_x3" id="f_px3" class="form-control" step="1" min="0"
+                         value="{{ producto.precio_x3 if producto and producto.precio_x3 else '' }}" placeholder="0">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:.75rem">Por 12 unid.</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="background:var(--accent-pale);border-color:var(--border);font-size:.75rem;font-weight:700;color:var(--accent)">x12</span>
+                  <input type="number" name="precio_x12" id="f_px12" class="form-control" step="1" min="0"
+                         value="{{ producto.precio_x12 if producto and producto.precio_x12 else '' }}" placeholder="0">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:.75rem">Por 24 unid.</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="background:var(--accent-pale);border-color:var(--border);font-size:.75rem;font-weight:700;color:var(--accent)">x24</span>
+                  <input type="number" name="precio_x24" id="f_px24" class="form-control" step="1" min="0"
+                         value="{{ producto.precio_x24 if producto and producto.precio_x24 else '' }}" placeholder="0">
+                </div>
+              </div>
+              <div>
+                <label class="form-label" style="font-size:.75rem">Por 48 unid.</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="background:var(--accent-pale);border-color:var(--border);font-size:.75rem;font-weight:700;color:var(--accent)">x48</span>
+                  <input type="number" name="precio_x48" id="f_px48" class="form-control" step="1" min="0"
+                         value="{{ producto.precio_x48 if producto and producto.precio_x48 else '' }}" placeholder="0">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STOCK -->
+          <div class="mb-4">
+            <label class="form-label">Stock actual</label>
+            <div class="d-flex align-items-center gap-3">
+              <input type="number" name="stock" id="f_stock" class="form-control" min="0"
+                     value="{{ producto.stock if producto else 0 }}" style="max-width:130px">
+              <span style="font-size:.83rem;color:var(--text-muted)">unidades en depósito</span>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 pt-2" style="border-top:1px solid var(--border)">
+            <button type="submit" class="btn btn-oxuma">
+              <i class="bi bi-{{ 'check2-circle' if producto else 'plus-lg' }} me-2"></i>
+              {{ 'Guardar cambios' if producto else 'Agregar producto' }}
+            </button>
+            <a href="/catalogo" class="btn btn-oxuma-outline">
+              <i class="bi bi-arrow-left me-1"></i>Cancelar
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL DICTADO ══════════════════════════════════════════════ -->
+<div class="modal fade" id="dictadoModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px">
+    <div class="modal-content" style="border-radius:20px;border:none;overflow:hidden">
+
+      <!-- Header -->
+      <div class="modal-header" style="background:linear-gradient(135deg,var(--primary),var(--primary-light));border:none;padding:20px 24px">
+        <div>
+          <h5 class="modal-title" style="color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;margin:0">
+            <i class="bi bi-mic-fill me-2" style="color:var(--accent-light)"></i>Dictar Producto
+          </h5>
+          <div style="color:rgba(255,255,255,.55);font-size:.78rem;margin-top:2px">Hablá en voz alta, claro y despacio</div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" onclick="cerrarDictado()"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body" style="padding:24px">
+
+        <!-- Step indicator -->
+        <div class="text-center mb-2">
+          <span class="step-chip" id="stepChip">
+            <i class="bi bi-circle-fill" style="font-size:.5rem"></i>
+            Paso <span id="stepNum">1</span> de 6
+          </span>
+          <div style="font-size:1.05rem;font-weight:700;color:var(--primary);font-family:'Montserrat',sans-serif" id="stepTitle">Nombre del producto</div>
+          <div style="font-size:.82rem;color:var(--text-muted);margin-top:4px" id="stepHint">Ej: "Esencia al agua frambuesa"</div>
+        </div>
+
+        <!-- Mic animation -->
+        <div class="mic-wave-wrap" id="micAnim">
+          <div class="mic-wave"></div>
+          <div class="mic-wave"></div>
+          <div class="mic-wave"></div>
+          <div class="mic-center"><i class="bi bi-mic-fill"></i></div>
+        </div>
+
+        <!-- Barra de volumen -->
+        <div class="vol-bars" id="volBars">
+          <div class="vol-bar" id="vb1"></div>
+          <div class="vol-bar" id="vb2"></div>
+          <div class="vol-bar" id="vb3"></div>
+          <div class="vol-bar" id="vb4"></div>
+          <div class="vol-bar" id="vb5"></div>
+          <div class="vol-bar" id="vb6"></div>
+          <div class="vol-bar" id="vb7"></div>
+        </div>
+
+        <!-- Transcript -->
+        <div class="transcript-box" id="transcriptBox">
+          <span style="color:var(--text-muted);font-size:.85rem" id="transcriptPlaceholder">Escuchando…</span>
+        </div>
+
+        <!-- Botones paso -->
+        <div class="d-flex gap-2 justify-content-center mt-3" id="stepBtns">
+          <button class="btn btn-sm btn-oxuma-outline" onclick="repetirPaso()" id="btnRepetir">
+            <i class="bi bi-arrow-repeat me-1"></i>Repetir
+          </button>
+          <button class="btn btn-sm btn-oxuma" onclick="confirmarPaso()" id="btnConfirmar" disabled>
+            <i class="bi bi-check2 me-1"></i>Confirmar
+          </button>
+          <button class="btn btn-sm" style="background:rgba(30,17,64,.07);color:var(--primary);border-radius:10px;font-weight:600"
+                  onclick="saltarPaso()">
+            Saltar
+          </button>
+        </div>
+
+        <!-- Preview de campos -->
+        <div class="voice-preview mt-2" id="voicePreview"></div>
+      </div>
+
+      <!-- Footer con resultados -->
+      <div class="modal-footer" id="modalFooter" style="display:none;border-top:1px solid var(--border);padding:16px 24px">
+        <div style="width:100%">
+          <div style="font-size:.85rem;font-weight:700;color:var(--primary);margin-bottom:12px;font-family:'Montserrat',sans-serif">
+            <i class="bi bi-check-circle-fill me-2" style="color:var(--success)"></i>¡Producto capturado! Revisá los datos:
+          </div>
+          <div class="voice-preview" id="finalPreview"></div>
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-oxuma w-100" onclick="cargarAlFormulario()">
+              <i class="bi bi-box-arrow-in-down me-2"></i>Cargar al formulario
+            </button>
+            <button class="btn btn-oxuma-outline" onclick="reiniciarDictado()" title="Volver a empezar">
+              <i class="bi bi-arrow-repeat"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ─── Precio calc ─── */
+function calcPrecio() {
+  const costo  = parseFloat(document.getElementById('precio_costo').value) || 0;
+  const margen = parseFloat(document.getElementById('margen').value) || 0;
+  if (costo > 0) {
+    const pv = costo * (1 + margen / 100);
+    document.getElementById('precio_venta').value = pv.toFixed(2);
+    document.getElementById('pricePreview').style.display = 'flex';
+    document.getElementById('previewVal').textContent = '$' + Math.round(pv).toLocaleString('es-AR');
+    document.getElementById('previewMargen').textContent = 'Margen: ' + margen + '%';
+    document.getElementById('previewGanancia').textContent = 'Ganancia: $' + Math.round(pv - costo).toLocaleString('es-AR');
+  }
+}
+calcPrecio();
+
+/* ═══════════════════════════════════════════
+   DICTADO POR VOZ
+═══════════════════════════════════════════ */
+const PASOS = [
+  { campo: 'nombre',      titulo: 'Nombre del producto',  hint: 'Ej: "Esencia al agua frambuesa 250ml"',   tipo: 'texto' },
+  { campo: 'categoria',   titulo: 'Categoría',            hint: 'Ej: "Sahumerios", "Esencias", "Velas"',  tipo: 'texto' },
+  { campo: 'marca',       titulo: 'Marca',                hint: 'Ej: "Pachamama", "Saphirus"',            tipo: 'texto' },
+  { campo: 'precio_costo',titulo: 'Precio de costo',      hint: 'Solo el número. Ej: "dos mil quinientos"', tipo: 'numero' },
+  { campo: 'margen',      titulo: 'Margen de ganancia %', hint: 'Solo el número. Ej: "treinta"',           tipo: 'numero' },
+  { campo: 'stock',       titulo: 'Stock en depósito',    hint: 'Cantidad de unidades. Ej: "cincuenta"',   tipo: 'numero' },
+];
+
+let dictadoData = {};
+let pasoActual  = 0;
+let recognition = null;
+let modalBS     = null;
+let volInterval = null;
+
+/* Verificar soporte */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function abrirDictado() {
+  if (!SpeechRecognition) {
+    alert('⚠️ Dictado por voz solo funciona en Google Chrome.\n\nAbrí la app en Chrome e intentá de nuevo.');
+    return;
+  }
+  dictadoData = {};
+  pasoActual  = 0;
+  document.getElementById('modalFooter').style.display = 'none';
+  document.getElementById('stepBtns').style.display = 'flex';
+  document.getElementById('voicePreview').innerHTML = '';
+  modalBS = new bootstrap.Modal(document.getElementById('dictadoModal'));
+  modalBS.show();
+  setTimeout(() => iniciarPaso(), 400);
+}
+
+function cerrarDictado() {
+  if (recognition) { try { recognition.stop(); } catch(e){} }
+  clearInterval(volInterval);
+  if (modalBS) modalBS.hide();
+}
+
+function iniciarPaso() {
+  const paso = PASOS[pasoActual];
+  document.getElementById('stepNum').textContent   = pasoActual + 1;
+  document.getElementById('stepTitle').textContent = paso.titulo;
+  document.getElementById('stepHint').textContent  = paso.hint;
+
+  const tb = document.getElementById('transcriptBox');
+  tb.innerHTML = '<span style="color:var(--text-muted);font-size:.85rem">Escuchando…</span>';
+  tb.classList.add('listening');
+
+  document.getElementById('btnConfirmar').disabled = true;
+  animarVolumen(true);
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-AR';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (e) => {
+    let texto = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      texto += e.results[i][0].transcript;
+    }
+    const isFinal = e.results[e.results.length - 1].isFinal;
+    tb.textContent = texto;
+    if (isFinal) {
+      recognition.stop();
+      animarVolumen(false);
+      tb.classList.remove('listening');
+      const valor = paso.tipo === 'numero' ? extraerNumero(texto) : texto.trim();
+      tb.textContent = valor || texto.trim();
+      document.getElementById('btnConfirmar').disabled = false;
+      dictadoData[paso.campo] = valor || texto.trim();
+      actualizarPreview();
+    }
+  };
+
+  recognition.onerror = (e) => {
+    animarVolumen(false);
+    tb.classList.remove('listening');
+    tb.innerHTML = '<span style="color:var(--danger);font-size:.85rem">No escuché nada · Intentá de nuevo</span>';
+    document.getElementById('btnConfirmar').disabled = true;
+  };
+
+  recognition.onend = () => {
+    animarVolumen(false);
+    tb.classList.remove('listening');
+  };
+
+  recognition.start();
+}
+
+function extraerNumero(texto) {
+  /* Si el reconocedor ya devolvió dígitos */
+  const digits = texto.replace(/\./g, '').replace(/,/g, '.').match(/[\d.]+/);
+  if (digits) return parseFloat(digits[0]).toString();
+
+  /* Palabras a números (español) */
+  const map = {
+    'cero':0,'uno':1,'una':1,'dos':2,'tres':3,'cuatro':4,'cinco':5,'seis':6,'siete':7,
+    'ocho':8,'nueve':9,'diez':10,'once':11,'doce':12,'trece':13,'catorce':14,'quince':15,
+    'dieciséis':16,'diecisiete':17,'dieciocho':18,'diecinueve':19,'veinte':20,
+    'veintiuno':21,'veintidós':22,'veintitrés':23,'veinticuatro':24,'veinticinco':25,
+    'treinta':30,'cuarenta':40,'cincuenta':50,'sesenta':60,'setenta':70,'ochenta':80,'noventa':90,
+    'cien':100,'ciento':100,'doscientos':200,'trescientos':300,'cuatrocientos':400,'quinientos':500,
+    'seiscientos':600,'setecientos':700,'ochocientos':800,'novecientos':900,
+    'mil':1000,'dos mil':2000,'tres mil':3000,'cuatro mil':4000,'cinco mil':5000,
+    'seis mil':6000,'siete mil':7000,'ocho mil':8000,'nueve mil':9000,'diez mil':10000
+  };
+  let t = texto.toLowerCase().trim();
+  let val = 0, tmp = 0;
+  t.split(/\s+/).forEach(w => {
+    if (map[w] !== undefined) {
+      if (map[w] === 1000) { val = (tmp||1)*1000; tmp = 0; }
+      else if (map[w] >= 100) { tmp += map[w]; }
+      else { tmp += map[w]; }
+    }
+  });
+  val += tmp;
+  return val > 0 ? val.toString() : '';
+}
+
+function repetirPaso() {
+  if (recognition) { try { recognition.stop(); } catch(e){} }
+  setTimeout(() => iniciarPaso(), 300);
+}
+
+function confirmarPaso() {
+  actualizarPreview();
+  pasoActual++;
+  if (pasoActual < PASOS.length) {
+    iniciarPaso();
+  } else {
+    mostrarResumen();
+  }
+}
+
+function saltarPaso() {
+  pasoActual++;
+  if (pasoActual < PASOS.length) {
+    iniciarPaso();
+  } else {
+    mostrarResumen();
+  }
+}
+
+function actualizarPreview() {
+  const wrap = document.getElementById('voicePreview');
+  wrap.innerHTML = PASOS.slice(0, pasoActual + 1).map(p => {
+    const v = dictadoData[p.campo];
+    return `<div class="voice-field ${v ? 'filled' : ''}">
+      <div class="vf-label">${p.titulo}</div>
+      <div class="vf-val">${v || '<span style="color:var(--text-muted)">—</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function mostrarResumen() {
+  animarVolumen(false);
+  document.getElementById('stepBtns').style.display = 'none';
+  document.getElementById('micAnim').style.display  = 'none';
+  document.getElementById('volBars').style.display  = 'none';
+  document.getElementById('transcriptBox').style.display = 'none';
+  document.getElementById('stepChip').style.display = 'none';
+  document.getElementById('stepTitle').textContent = '✅ ¡Listo!';
+  document.getElementById('stepHint').textContent  = 'Revisá los datos y cargalos al formulario';
+  document.getElementById('voicePreview').innerHTML = '';
+
+  const fp = document.getElementById('finalPreview');
+  fp.innerHTML = PASOS.map(p => {
+    const v = dictadoData[p.campo];
+    return `<div class="voice-field ${v ? 'filled' : ''}">
+      <div class="vf-label">${p.titulo}</div>
+      <div class="vf-val">${v || '<span style="color:var(--text-muted)">—</span>'}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('modalFooter').style.display = 'block';
+}
+
+function cargarAlFormulario() {
+  if (dictadoData.nombre)       document.getElementById('f_nombre').value    = dictadoData.nombre;
+  if (dictadoData.categoria)    document.getElementById('f_categoria').value  = dictadoData.categoria;
+  if (dictadoData.marca)        document.getElementById('f_marca').value      = dictadoData.marca;
+  if (dictadoData.precio_costo) document.getElementById('precio_costo').value = dictadoData.precio_costo;
+  if (dictadoData.margen)       document.getElementById('margen').value       = dictadoData.margen;
+  if (dictadoData.stock)        document.getElementById('f_stock').value      = dictadoData.stock;
+  calcPrecio();
+  cerrarDictado();
+  document.getElementById('f_nombre').focus();
+}
+
+function reiniciarDictado() {
+  dictadoData = {};
+  pasoActual  = 0;
+  document.getElementById('modalFooter').style.display = 'none';
+  document.getElementById('stepBtns').style.display    = 'flex';
+  document.getElementById('micAnim').style.display     = 'flex';
+  document.getElementById('volBars').style.display     = 'flex';
+  document.getElementById('transcriptBox').style.display = 'block';
+  document.getElementById('stepChip').style.display    = 'inline-flex';
+  document.getElementById('voicePreview').innerHTML = '';
+  iniciarPaso();
+}
+
+/* Animación barras de volumen */
+function animarVolumen(activo) {
+  clearInterval(volInterval);
+  const bars = [1,2,3,4,5,6,7].map(n => document.getElementById('vb'+n));
+  if (activo) {
+    volInterval = setInterval(() => {
+      bars.forEach(b => {
+        if (b) b.style.height = (4 + Math.random() * 22) + 'px';
+      });
+    }, 120);
+  } else {
+    bars.forEach(b => { if (b) b.style.height = '4px'; });
+  }
+}
+</script>
+{% endblock %}
